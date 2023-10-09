@@ -201,11 +201,12 @@ HRESULT InitShader()
             std::ifstream ifs(fileName, std::ios::binary);
             if (ifs.fail()) {
                 *(long*)(0xcbcbcbcbcbcbcbcb) = 0;//強制終了
-        }
+            }
             std::istreambuf_iterator<char> it(ifs);
             std::istreambuf_iterator<char> last;
             Buffer.assign(it, last);
-    }
+            ifs.close();
+        }
         const char* pointer() const {
             return Buffer.data();
         }
@@ -214,8 +215,7 @@ HRESULT InitShader()
         }
     private:
         std::string Buffer;
-}buf;
-
+    }buf;
 
     //頂点シェーダをつくる------------------------------------------------------
 #ifdef _DEBUG
@@ -223,7 +223,14 @@ HRESULT InitShader()
 #else
     buf = "x64\\Release\\VertexShader.cso";
 #endif
-    g_device->CreateVertexShader(buf.pointer(), buf.size(), NULL, g_vertexShader.GetAddressOf());
+    HRESULT hr;
+    hr = g_device->CreateVertexShader(buf.pointer(), buf.size(), NULL, g_vertexShader.GetAddressOf());
+    if (FAILED(hr))
+    {
+        WARNING(L"頂点シェーダがつくれませんでした。");
+        return E_FAIL;
+    }
+
     // 頂点インプットレイアウトを定義
     D3D11_INPUT_ELEMENT_DESC inputElementDescs[] =
     {
@@ -233,9 +240,10 @@ HRESULT InitShader()
     // インプットレイアウトのサイズ
     UINT numElements = sizeof(inputElementDescs) / sizeof(inputElementDescs[0]);
     // 頂点インプットレイアウトを作成
-    if (FAILED(g_device->CreateInputLayout(inputElementDescs, numElements, buf.pointer(), buf.size(), g_layout.GetAddressOf())))
+    hr = g_device->CreateInputLayout(inputElementDescs, numElements, buf.pointer(), buf.size(), g_layout.GetAddressOf());
+    if (FAILED(hr))
     {
-        WARNING(L"頂点インプットレイアウトの定義が間違っています。");
+        WARNING(L"頂点インプットレイアウトがつくれませんでした。");
         return E_FAIL;
     }
     // 頂点インプットレイアウトをセット
@@ -249,6 +257,11 @@ HRESULT InitShader()
     buf = "x64\\Release\\PixelShader.cso";
 #endif
     g_device->CreatePixelShader(buf.pointer(), buf.size(), NULL, g_pixelShader.GetAddressOf());
+    if (FAILED(hr))
+    {
+        WARNING(L"ピクセルシェーダがつくれませんでした。");
+        return E_FAIL;
+    }
 
     return S_OK;
 }
@@ -266,8 +279,7 @@ HRESULT InitBuffer()
     };
 
     // バッファを作成
-    D3D11_BUFFER_DESC bufferDesc;
-    ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+    D3D11_BUFFER_DESC bufferDesc{};
 
     // 頂点バッファの設定
     bufferDesc.Usage = D3D11_USAGE_DEFAULT;                 // デフォルトアクセス
@@ -276,8 +288,7 @@ HRESULT InitBuffer()
     bufferDesc.CPUAccessFlags = 0;                          // CPUのバッファへのアクセス拒否
 
     // リソースの設定
-    D3D11_SUBRESOURCE_DATA initData;
-    ZeroMemory(&initData, sizeof(initData));
+    D3D11_SUBRESOURCE_DATA initData{};
     initData.pSysMem = vertices;
 
     // 頂点バッファを作成
