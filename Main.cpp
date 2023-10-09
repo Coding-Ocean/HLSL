@@ -10,8 +10,6 @@ using Microsoft::WRL::ComPtr;
 #include <directxmath.h>
 using namespace DirectX;
 
-#include "FILE_BUFFER.h"
-
 #define WINDOW_CLASS    L"Pixel Shader"
 #define WINDOW_TITLE    WINDOW_CLASS
 #define WINDOW_WIDTH    1920
@@ -193,18 +191,39 @@ HRESULT InitDevice()
 }
 
 // シェーダ関連初期化
+#include<fstream>
 HRESULT InitShader()
 {
     //コンパイル済みシェーダを読み込むファイルバッファ
-    FILE_BUFFER fb;
+    class BUFFER {
+    public:
+        void operator= (const char* fileName) {
+            std::ifstream ifs(fileName, std::ios::binary);
+            if (ifs.fail()) {
+                *(long*)(0xcbcbcbcbcbcbcbcb) = 0;//強制終了
+        }
+            std::istreambuf_iterator<char> it(ifs);
+            std::istreambuf_iterator<char> last;
+            Buffer.assign(it, last);
+    }
+        const char* pointer() const {
+            return Buffer.data();
+        }
+        size_t size() {
+            return Buffer.size();
+        }
+    private:
+        std::string Buffer;
+}buf;
+
 
     //頂点シェーダをつくる------------------------------------------------------
 #ifdef _DEBUG
-    fb = "x64\\Debug\\VertexShader.cso";
+    buf = "x64\\Debug\\VertexShader.cso";
 #else
-    fb = "x64\\Release\\VertexShader.cso";
+    buf = "x64\\Release\\VertexShader.cso";
 #endif
-    g_device->CreateVertexShader(fb.buffer(), fb.size(), NULL, g_vertexShader.GetAddressOf());
+    g_device->CreateVertexShader(buf.pointer(), buf.size(), NULL, g_vertexShader.GetAddressOf());
     // 頂点インプットレイアウトを定義
     D3D11_INPUT_ELEMENT_DESC inputElementDescs[] =
     {
@@ -214,7 +233,7 @@ HRESULT InitShader()
     // インプットレイアウトのサイズ
     UINT numElements = sizeof(inputElementDescs) / sizeof(inputElementDescs[0]);
     // 頂点インプットレイアウトを作成
-    if (FAILED(g_device->CreateInputLayout(inputElementDescs, numElements, fb.buffer(), fb.size(), g_layout.GetAddressOf())))
+    if (FAILED(g_device->CreateInputLayout(inputElementDescs, numElements, buf.pointer(), buf.size(), g_layout.GetAddressOf())))
     {
         WARNING(L"頂点インプットレイアウトの定義が間違っています。");
         return E_FAIL;
@@ -225,11 +244,11 @@ HRESULT InitShader()
 
     //ピクセルシェーダーをつくる-------------------------------------------------
 #ifdef _DEBUG
-    fb = "x64\\Debug\\PixelShader.cso";
+    buf = "x64\\Debug\\PixelShader.cso";
 #else
-    fb = "x64\\Release\\PixelShader.cso";
+    buf = "x64\\Release\\PixelShader.cso";
 #endif
-    g_device->CreatePixelShader(fb.buffer(), fb.size(), NULL, g_pixelShader.GetAddressOf());
+    g_device->CreatePixelShader(buf.pointer(), buf.size(), NULL, g_pixelShader.GetAddressOf());
 
     return S_OK;
 }
